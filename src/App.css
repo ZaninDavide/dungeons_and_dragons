@@ -1,0 +1,223 @@
+body, #App{
+  overscroll-behavior: none;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  overflow-y: hidden;
+
+  -moz-user-select: -moz-none;
+  -khtml-user-select: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  outline: none;
+}
+
+html{
+  --backColor: #171616;
+  --hoverColor: #272626;
+  --selectColor: #f3c623;
+  --alertColor: #ee2b11;
+  --backColorTransparent: #171616f6;
+  --radius: 5px;
+}
+
+#App{
+  width: 100vw;
+  height: 100vh;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas: "side main";
+  color: white;
+  overflow: hidden;
+}
+
+#side{
+  grid-area: side;
+  background-color: var(--backColor);
+  padding: 15px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-shadow: 4px 0px 4px rgba(0,0,0,.25);
+  width: 250px;
+}
+
+.hiddenMenu{
+  width: 0px !important;
+  padding: 0px !important;
+}
+
+#main{
+  grid-area: main;
+  display: grid;
+}
+
+#nameTitle{
+  margin-top: 0;
+  color: var(--selectColor);
+}
+
+button{
+  width: 100%;
+  height: 50px;
+  border: 0;
+  outline: 0;
+  background-color: white;
+  color: var(--backColor);
+  font-size: 15px;
+  border-radius: var(--radius);
+  font-weight: bold;
+}
+
+svg{
+  width: 100%;
+  height: 100%;
+}
+
+button::selection, circle::selection, svg::selection{
+  background: transparent;
+  outline: none;
+}
+
+#selectionBox{
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 200px;
+  height: 150px;
+  background-color: var(--backColorTransparent);
+  color: white;
+  border-radius: var(--radius);
+  padding: 15px;
+  font-size: 17px;
+  font-weight: bold;
+  line-height: 2.5em;
+  box-shadow: 2px 3px 4px rgba(0,0,0,.25);
+
+  transition-property: opacity;
+  transition-duration: .05s;
+  transition-timing-function: linear;
+
+}
+
+#selectionDamageButton{
+  position: absolute;
+  margin-left: auto;
+  margin-right: auto;
+  left: 0;
+  right: 0;
+  bottom: 10px;
+  width: fit-content;
+  
+  height: 30px;
+  padding: 5px;
+  line-height: 30px;
+  border-radius: var(--radius);
+
+  font-weight: bold;
+  background-color: var(--alertColor);
+  color: white;
+
+  cursor: pointer;
+
+  box-shadow: 2px 3px 4px rgba(0,0,0,.25);
+  transition-property: opacity;
+  transition-duration: .05s;
+  transition-timing-function: linear;
+}
+
+#selectionDamageButton:hover{
+  background-color: var(--hoverColor);
+}
+
+#selectedHp, #selectedCa{
+  float: right;
+}
+
+.playerItem{
+  height: 50px;
+  line-height: 50px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-radius: 5px;
+  cursor: pointer;
+  margin-top: 5px;
+  margin-bottom: 5px;
+}
+
+.playerItemSelected{
+  background-color: var(--selectColor) !important;
+  color: var(--backColor);
+}
+
+.playerItem:hover{
+  background-color: var(--hoverColor);
+}
+
+.playerCircle{
+  cursor: pointer;
+}
+
+.playerCircleTransition{
+  transition-property: cx, cy;
+  transition-duration: .1s, .1s;
+  transition-timing-function: ease-in-out, ease-in-out;
+}
+
+.playerCircleText{
+  cursor: pointer;
+  transition-property: x, y;
+  transition-duration: .1s, .1s;
+  transition-timing-function: ease-in-out, ease-in-out;
+  font-size: 25px;
+  font-weight: bold;
+}
+
+.selectedCircle{
+  stroke: var(--selectColor);
+  stroke-width: 3px;
+}
+
+/*.selectedCircleText{
+  fill: var(--selectColor);
+}*/
+
+.titleColor{
+  color: var(--titleColor);
+}
+
+input[type="color"] {
+	opacity: 0;
+	display: block;
+	width: 100%;
+	height: 50px;
+  border: none;
+  outline: none;
+  cursor: pointer;
+}
+
+#color-picker-wrapper {
+  float: left;
+  width: 100%;
+  margin-top: 5px;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+#menuButton{
+  background-color: var(--selectColor);
+  color: var(--backColor);
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  height: 30px;
+  padding: 5px;
+  line-height: 30px;
+  border-radius: var(--radius);
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.selectText{
+  color: var(--selectColor);
+}
