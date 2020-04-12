@@ -18,6 +18,7 @@ html{
   --hoverColor: #272626;
   --selectColor: #f3c623;
   --alertColor: #ee2b11;
+  --healColor: #83d834;
   --backColorTransparent: #171616f6;
   --radius: 5px;
 }
@@ -25,31 +26,34 @@ html{
 #App{
   width: 100vw;
   height: 100vh;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  grid-template-areas: "side main";
   color: white;
   overflow: hidden;
 }
 
 #side{
-  grid-area: side;
-  background-color: var(--backColor);
+  position: absolute;
+  background-color: var(--backColorTransparent);
   padding: 15px;
+  padding-bottom: 80px;
   overflow-y: auto;
   overflow-x: hidden;
   box-shadow: 4px 0px 4px rgba(0,0,0,.25);
   width: 250px;
+  height: calc(100vh - 95px);
+  z-index: 10;
+  left: 0px;
+  transition: left .1s ease-in-out;
 }
 
 .hiddenMenu{
-  width: 0px !important;
-  padding: 0px !important;
+  left: -281px !important;
+  pointer-events: none;
 }
 
 #main{
-  grid-area: main;
-  display: grid;
+  z-index: -10;
+  width: 100vw;
+  height: 100vh;
 }
 
 #nameTitle{
@@ -57,7 +61,7 @@ html{
   color: var(--selectColor);
 }
 
-button{
+#enterButton{
   width: 100%;
   height: 50px;
   border: 0;
@@ -67,11 +71,39 @@ button{
   font-size: 15px;
   border-radius: var(--radius);
   font-weight: bold;
+  cursor: pointer;
 }
 
-svg{
+#masterButton{
   width: 100%;
-  height: 100%;
+  height: 50px;
+  border: 0;
+  outline: 0;
+  background-color: white;
+  color: var(--backColor);
+  font-size: 15px;
+  border-radius: var(--radius);
+  font-weight: bold;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+#newEnemyButton, #newSpeciesButton{
+  width: 100%;
+  height: 50px;
+  border: 0;
+  outline: 0;
+  background-color: var(--backColor);
+  color: white;
+  font-size: 25px;
+  border-radius: var(--radius);
+  font-weight: bold;
+  cursor: pointer;
+  margin-top: 5px;
+}
+
+#newEnemyButton:hover, #newSpeciesButton:hover{
+  background-color: var(--hoverColor);
 }
 
 button::selection, circle::selection, svg::selection{
@@ -84,7 +116,6 @@ button::selection, circle::selection, svg::selection{
   top: 10px;
   right: 10px;
   width: 200px;
-  height: 150px;
   background-color: var(--backColorTransparent);
   color: white;
   border-radius: var(--radius);
@@ -100,7 +131,7 @@ button::selection, circle::selection, svg::selection{
 
 }
 
-#selectionDamageButton{
+#selectionBoxButtons{
   position: absolute;
   margin-left: auto;
   margin-right: auto;
@@ -108,17 +139,23 @@ button::selection, circle::selection, svg::selection{
   right: 0;
   bottom: 10px;
   width: fit-content;
-  
+  height: fit-content;
+  display: inline-block;
+}
+
+.selectionBoxButton{
   height: 30px;
   padding: 5px;
   line-height: 30px;
   border-radius: var(--radius);
 
   font-weight: bold;
-  background-color: var(--alertColor);
   color: white;
 
   cursor: pointer;
+  display: inline-block;
+  margin-left: 5px;
+  margin-right: 5px;
 
   box-shadow: 2px 3px 4px rgba(0,0,0,.25);
   transition-property: opacity;
@@ -126,15 +163,19 @@ button::selection, circle::selection, svg::selection{
   transition-timing-function: linear;
 }
 
-#selectionDamageButton:hover{
-  background-color: var(--hoverColor);
+#selectionDamageButton{
+  background-color: var(--alertColor);
+}
+
+#selectionHealButton{
+  background-color: var(--healColor);
 }
 
 #selectedHp, #selectedCa{
   float: right;
 }
 
-.playerItem{
+.playerItem, .enemyItem{
   height: 50px;
   line-height: 50px;
   padding-left: 5px;
@@ -145,12 +186,12 @@ button::selection, circle::selection, svg::selection{
   margin-bottom: 5px;
 }
 
-.playerItemSelected{
+.playerItemSelected, .enemyItemSelected{
   background-color: var(--selectColor) !important;
   color: var(--backColor);
 }
 
-.playerItem:hover{
+.playerItem:hover, .enemyItem:hover{
   background-color: var(--hoverColor);
 }
 
@@ -174,8 +215,8 @@ button::selection, circle::selection, svg::selection{
 }
 
 .selectedCircle{
-  stroke: var(--selectColor);
-  stroke-width: 3px;
+  stroke: var(--backColor);
+  stroke-width: 5px;
 }
 
 /*.selectedCircleText{
@@ -216,8 +257,208 @@ input[type="color"] {
   border-radius: var(--radius);
   font-weight: bold;
   cursor: pointer;
+  z-index: 11;
 }
 
 .selectText{
   color: var(--selectColor);
+}
+
+#backModal{
+  z-index: 20;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+}
+
+#modalPlusButton, #modalMinusButton, #modalOkButton{
+  display: inline-block;
+  width: 50px;
+  height: 30px;
+  line-height: 30px;
+  padding: 5px;
+  margin-left: 5px;
+  margin-right: 5px;
+  border: 0px;
+
+  background-color: var(--selectColor);
+  color: var(--backColor);
+  border-radius: var(--radius);
+  font-weight: bold;
+  font-size: 25px;
+  
+  cursor: pointer;
+  display: inline-block;
+
+  text-align: center;
+
+  margin-top: 20px;
+}
+
+#modalOkButton{
+  margin-top: 20px;
+}
+
+#modalLabel{
+  display: inline-block;
+  width: 50px;
+  height: 30px;
+  line-height: 30px;
+  padding: 5px;
+  margin-left: 5px;
+  margin-right: 5px;
+  border: 0px;
+
+  color: white;
+  border-radius: var(--radius);
+  font-size: 25px;
+  font-weight: bold;
+
+  display: inline-block;
+  text-align: center;
+}
+
+#Modal, #NameModal{
+  width: 300px;
+  height: 180px;
+
+  margin-left: calc((100vw - 300px) / 2);
+  margin-right: calc((100vw - 300px) / 2);
+
+  margin-top: calc((100vh - 180px) / 3);
+
+  padding-top: 15px;
+
+  background-color: var(--backColor);
+  text-align: center;
+
+  border-radius: var(--radius);
+}
+
+#NameModal{
+  width: 300px;
+  height: 110px;
+
+  margin-left: calc((100vw - 300px) / 2);
+  margin-right: calc((100vw - 300px) / 2);
+
+  margin-top: calc((100vh - 110px) / 3);
+
+  padding-top: 15px;
+
+  background-color: var(--backColor);
+  text-align: center;
+
+  border-radius: var(--radius);
+}
+
+#SpeciesModal{
+  width: 300px;
+  height: 220px;
+
+  margin-left: calc((100vw - 300px) / 2);
+  margin-right: calc((100vw - 300px) / 2);
+
+  margin-top: calc((100vh - 220px) / 3);
+
+  padding-top: 15px;
+
+  background-color: var(--backColor);
+
+  border-radius: var(--radius);
+}
+
+.speciesHp, .speciesCA{
+  float: right;
+}
+
+
+.speciesName{
+  float: left;
+  line-height: 40px;
+  font-weight: bold;
+}
+
+.speciesItem{
+  width: calc(100% - 10px);
+  height: 40px;
+  border: 0;
+  border-radius: var(--radius);
+  outline: 0;
+  background-color: var(--backColor);
+  color: white;
+  cursor: pointer;
+  margin-top: 5px;
+  padding: 5px;
+}
+
+.speciesItem:hover{
+  background-color: var(--hoverColor);
+}
+
+#speciesModalTextbox, #nameModalTextbox{
+  width: calc(100% - 35px);
+  border: 0;
+  border-radius: var(--radius);
+  height: 30px;
+  line-height: 30px;
+  background-color: var(--hoverColor);
+  color: white;
+  margin-left: 15px;
+  margin-right: 15px;
+  padding-left: 5px;
+  font-size: 20px;
+  font-weight: bold;
+  outline: none;
+}
+
+#speciesModalHpLabel, #speciesModalCALabel{
+  margin-left: 15px;
+  margin-top: 0px;
+  font-weight: bold;
+  display: inline-block;
+  margin-right: 20px;
+}
+
+#speciesModalHp, #speciesModalCA{
+  display: inline-block;
+  line-height: 35px;
+  font-size: 25px;
+  font-weight: bold;
+  text-align: center;
+  width: 60px;
+}
+
+.speciesModalMinus, .speciesModalPlus{
+  display: inline-block;
+  background-color: var(--selectColor);
+  color: var(--backColor);
+  height: 40px;
+  width: 35px;
+  line-height: 35px;
+  font-size: 25px;
+  font-weight: bold;
+  border-radius: var(--radius);
+  margin-left: 5px;
+  margin-right: 5px;
+  margin-top: 15px;
+  text-align: center;
+}
+
+#speciesModalOkButton{
+  display: inline-block;
+  background-color: var(--selectColor);
+  color: var(--backColor);
+  height: 40px;
+  width: calc(100% - 30px);
+  line-height: 35px;
+  font-weight: bold;
+  border-radius: var(--radius);
+  margin-left: 15px;
+  margin-right: 15px;
+  margin-top: 20px;
+  font-size: 25px;
+  text-align: center;
 }

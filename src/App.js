@@ -1,14 +1,14 @@
 import React, { Component } from 'react';
 import './App.css';
+import Modal from "./Modal";
+import NameModal from "./NameModal";
+import SpeciesModal from "./SpeciesModal";
 
 let socket
 
 if (window.location.hostname === "localhost")
     socket = window.io("localhost:5000")
 else socket = window.io("http://dungeons-and-dragons-server.herokuapp.com")
-
-
-let wasMenuOpen = true
 
 let action = undefined
 
@@ -25,15 +25,30 @@ let moved = false
 class App extends Component {
   constructor(props){
     super(props)
+
+    const vw = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
+    const vh = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
+
     this.state = {
       name: "",
+      isMaster: false,
       players: [],
+      enemies: [],
+      species: {},
       cellSize: 75,
       action: "drag",
-      viewX: -75,
-      viewY: -75,
+      viewX: -vw / 2,
+      viewY: -vh / 3,
+      viewWidth: 500,
+      viewHeight: 500,
       selection_name: undefined,
       showMenu: true,
+      modalVisible: false,
+      modalClose: modalValue => true,
+      nameModalVisible: false,
+      nameModalClose: name => true,
+      speciesModalVisible: false,
+      speciesModalClose: (name, hp, ca) => true,
     }
     
     this.mainRef = React.createRef()
@@ -42,6 +57,8 @@ class App extends Component {
     this.enterGame  = this.enterGame.bind(this)
 
     this.getPlayers = this.getPlayers.bind(this)
+    this.getEnemies = this.getEnemies.bind(this)
+    this.getSpecies = this.getSpecies.bind(this)
     this.getSVG     = this.getSVG.bind(this)
 
     this.resize    = this.resize.bind(this)
@@ -68,39 +85,68 @@ class App extends Component {
       })
     })
 
+    socket.on("enemies", data => {
+      this.setState({
+        enemies: data.enemies
+      })
+    })
+
+    socket.on("species", data => {
+      this.setState({
+        species: data.species
+      })
+    })
+
+
     window.addEventListener('resize', this.resize);
   }
 
   // ------------------------- SERVER -------------------------
 
-  enterGame(input_name = undefined){
-    if(!input_name){
-      input_name = window.prompt("Choose a name", "Name")
-    }
-    this.setState(old => {return {
-      name: input_name
-    }})
+  enterGame(){
+    this.setState({
+      nameModalVisible: true,
+      nameModalClose: name => {
+        if(!name) return
 
-    // enter game
-    socket.emit("join game", input_name)
+        this.setState({ name })
+        socket.emit("join game", name)
+      }
+    })
+
   }
 
   // ------------------------- APP -------------------------
 
   isFree(cell){
     let found = false
+    // search in players
     this.state.players.forEach(p => {
       if(p.x === cell.x && p.y === cell.y){
         found = true
       }
     })
+    if(!found){
+      // search in enemies
+      this.state.enemies.forEach(en => {
+        if(en.x === cell.x && en.y === cell.y){
+          found = true
+        }
+      })
+    }
+
     return !found
   }
 
   getSelectionData(attr){
-    const player = this.state.players.filter(player => player.name === this.state.selection_name)[0]
-    if(!player) return undefined
-    return player[attr]
+    // search in players
+    let entity = this.state.players.filter(player => player.name === this.state.selection_name)[0]
+    if(!entity){
+      // search in enemies
+      entity = this.state.enemies.filter(enemy => enemy.name === this.state.selection_name)[0]
+    }
+    if(!entity) return undefined
+    return entity[attr]
   }
 
   deselect(){
@@ -109,6 +155,7 @@ class App extends Component {
 
   trySelect(cell){
     let found = false
+    // ssearch in players
     this.state.players.forEach(p => {
       if(p.x === cell.x && p.y === cell.y){
         found = true
@@ -117,6 +164,18 @@ class App extends Component {
         })
       }
     })
+    
+    if(!found){
+      // search in enemies
+      this.state.enemies.forEach(en => {
+        if(en.x === cell.x && en.y === cell.y){
+          found = true
+          this.setState({
+            selection_name: en.name
+          })
+        }
+      })
+    }
 
     if(!found){
       this.deselect()
@@ -142,7 +201,12 @@ class App extends Component {
   // ------------------------- UI -------------------------
 
   resize(){
-    this.forceUpdate()
+    const vw = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
+    const vh = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
+    this.setState({
+      viewWidth: vw,
+      viewHeight: vh,
+    })
   }
 
   componentDidMount(){
@@ -268,24 +332,44 @@ class App extends Component {
   // ------------------------- RENDER -------------------------
 
   render(){
-    if(wasMenuOpen !== this.state.showMenu){
-      wasMenuOpen = this.state.showMenu;
-      this.forceUpdate();
-    }
-
-    let mainWidth = this.mainRef.current ? this.mainRef.current.offsetWidth : 0
-    let mainHeight = this.mainRef.current ? this.mainRef.current.offsetHeight : 0
-
     return (
       <div id="App" key="App">
         <div id="side" className={this.state.showMenu ? "" : "hiddenMenu"}>
           {this.state.name ? 
             <h2 id="nameTitle">{this.state.name}</h2> 
-          : 
-            <button onClick={() => this.enterGame()}>Enter game</button>
-          }
+          : [
+            <button id="enterButton"  onClick={() => this.enterGame()}>Play</button>,
+            <button id="masterButton" onClick={() => this.setState({name: "Master", isMaster: true})}>Master</button>
+          ]}
           <h3>Players:</h3>
           {this.getPlayers()}
+          <h3>Enemies:</h3>
+          {this.getEnemies()}
+          { // THINGS VISIBLE ONLY TO THE MASTER
+            (() => {
+              if(this.state.isMaster){
+                return <React.Fragment>
+                  {/*<button
+                    id="newEnemyButton"
+                    onClick={() => socket.emit("newEnemy", "Z" + (this.state.enemies.length + 1).toString(), "zombie")}
+                  >+</button>*/}
+                  <h3>Species:</h3>
+                  {this.getSpecies()}
+                  <button
+                    id="newSpeciesButton"
+                    onClick={() => {
+                      this.setState({
+                        speciesModalVisible: true,
+                        speciesModalClose: (name, hp, ca) => socket.emit("newSpecies", name, hp, ca)
+                      })
+                    }}
+                  >+</button>
+                </React.Fragment>
+              }else{
+                return null
+              }
+            })()
+          }
         </div>
         <div 
           id="main"
@@ -300,9 +384,9 @@ class App extends Component {
           onTouchEnd={this.mouseUp}
         >
           <svg 
-            width={mainWidth} 
-            height={mainHeight} 
-            viewBox={this.state.viewX + " " + this.state.viewY + " " + mainWidth + " " + mainHeight}
+            width={this.state.viewWidth} 
+            height={this.state.viewHeight} 
+            viewBox={this.state.viewX + " " + this.state.viewY + " " + this.state.viewWidth + " " + this.state.viewHeight}
             key="mainSVG"
           >
             <pattern id="gridPattern" x="0" y="0" width={this.state.cellSize} height={this.state.cellSize} patternUnits="userSpaceOnUse">
@@ -342,6 +426,34 @@ class App extends Component {
         <div id="menuButton" onClick={this.showHideMenu}>
           MENU
         </div>
+        {/* MODAL */}
+        <Modal 
+          visible={this.state.modalVisible}
+          close={value => {
+            this.state.modalClose(value)
+            this.setState({modalVisible: false})
+          }}
+          abort={() => this.setState({modalVisible: false})}
+        />
+        {/* SPECIES MODAL */}
+        <SpeciesModal 
+          visible={this.state.speciesModalVisible}
+          close={(name, hp, ca) => {
+            this.state.speciesModalClose(name, hp, ca)
+            this.setState({speciesModalVisible: false})
+          }}
+          abort={() => this.setState({speciesModalVisible: false})}
+        />
+        {/* NAME MODAL */}
+        <NameModal 
+          visible={this.state.nameModalVisible}
+          close={value => {
+            this.state.nameModalClose(value)
+            this.setState({nameModalVisible: false})
+          }}
+          abort={() => this.setState({nameModalVisible: false})}
+          default={"Name"}
+        />
       </div>
     );
   }
@@ -359,20 +471,62 @@ class App extends Component {
     )
   }
 
+  getEnemies(){
+    return this.state.enemies.map(en => 
+    <div 
+      id={"enemy_" + en.name} key={"enemy_" + en.name} 
+      className={"enemyItem" + (en.name === this.state.selection_name ? " enemyItemSelected" : "")}
+      onClick={() => this.setState({selection_name: en.name})}
+    >
+      <span style={{float: "right"}}>{en.hp - en.max_hp}</span>
+      <span>{en.name}</span>
+    </div>
+    )
+  }
+
+  getSpecies(){
+    return Object.values(this.state.species).map(sp => (
+      <div className="speciesItem"
+        onClick={() => {
+          socket.emit("newEnemy", sp.name[0].toUpperCase() + (this.state.enemies.length + 1).toString(), sp.name)
+        }}
+      >
+        <div className="speciesName">{sp.name}</div>
+        <div className="speciesHp">{sp.max_hp}</div><br/>
+        <div className="speciesCA">{sp.ca}</div>
+      </div>
+    ))
+  }
+
   selectionBox(){
     if(!this.state.selection_name) return <React.Fragment>
-      <div id="selectionBox" style={{opacity: 0, display: "none"}} />
-      <div id="selectionDamageButton" style={{opacity: 0, display: "none"}} />
+      <div id="selectionBox" style={{opacity: 0, visibility: "none", pointerEvents: "none"}} />
+      <div id="selectionDamageButton" style={{opacity: 0, visibility: "none", pointerEvents: "none"}}>DAMAGE</div>
     </React.Fragment>
 
     return <React.Fragment>
       <div id="selectionBox">
         <div id="selectedHp">
-          <span className="selectText">{this.getSelectionData("hp")}</span>{"/" + this.getSelectionData("max_hp")}
+          {
+            this.getSelectionData("type") === "player" || this.state.isMaster ? 
+              <React.Fragment>
+                <span className="selectText">{this.getSelectionData("hp")}</span>{"/" + this.getSelectionData("max_hp")}
+              </React.Fragment>
+            :
+              <React.Fragment>
+                <span className="selectText">{this.getSelectionData("hp") - this.getSelectionData("max_hp")}</span>
+              </React.Fragment>
+          }
         </div>
         <div id="selectedName">{this.state.selection_name}</div>
-        <div id="selectedCa" className="selectText">{this.getSelectionData("ca")}</div>
-        <div>C.A.</div>
+        {
+          this.getSelectionData("type") === "player" || this.state.isMaster ?
+            <React.Fragment>
+              <div id="selectedCa" className="selectText">{this.getSelectionData("ca")}</div>
+              <div>C.A.</div>
+            </React.Fragment>
+          : null
+        }
         <div id="color-picker-wrapper" style={{backgroundColor: this.getSelectionData("color")}}><input 
           type="color" 
           onChange={e => {
@@ -381,13 +535,25 @@ class App extends Component {
           value={this.getSelectionData("color")}
         /></div>
       </div>
-      <div 
-        id="selectionDamageButton"
-        onClick={() => {
-          this.hp_delta_selected(-1)
-        }}
-      >
-        DAMAGE
+      <div id="selectionBoxButtons">
+        <div 
+          id="selectionDamageButton" className="selectionBoxButton"
+          onClick={() => {
+            this.setState({
+              modalVisible: true,
+              modalClose: value => this.hp_delta_selected(-value) 
+            })
+          }}
+        >DAMAGE</div>
+        <div 
+          id="selectionHealButton" className="selectionBoxButton"
+          onClick={() => {
+            this.setState({
+              modalVisible: true,
+              modalClose: value => this.hp_delta_selected(+value) 
+            })
+          }}
+        >HEAL</div>
       </div>
     </React.Fragment>
   }
@@ -426,6 +592,42 @@ class App extends Component {
           key={"playerCircleText_" + p.name}
           draggable={false}
         >{p.name ? p.name[0] : ""}</text>
+      )
+    })  
+
+    // ENEMY CIRCLE
+    this.state.enemies.forEach(en => {
+      let selected = this.state.selection_name ? ( en.name === this.state.selection_name ? true : false ) : false
+      objs.push(
+        <circle 
+          cx={en.x * this.state.cellSize + this.state.cellSize / 2} 
+          cy={en.y * this.state.cellSize + this.state.cellSize / 2} 
+          r={this.state.cellSize * 0.8 / 2}
+          fill={en.color}
+          className={
+            // really this is an ENEMY
+            "playerCircle" + (!selected ? " playerCircleTransition" : "") + (selected ? " selectedCircle" : "") // TODO playerCircleTransition should care about dragged if selected
+          }
+          id={"enemyCircle_" + en.name}
+          key={"enemyCircle_" + en.name}
+          draggable={false}
+        ></circle>
+      )
+      objs.push(
+        <text 
+          x={en.x * this.state.cellSize + this.state.cellSize / 2 + 1} 
+          y={en.y * this.state.cellSize + this.state.cellSize / 2 + 3} 
+          fill={"white"}
+          textAnchor="middle"
+          alignmentBaseline="middle"
+          className={
+            // really this is an ENEMY
+            "playerCircleText" + (selected ? " selectedCircleText" : "")
+          }
+          id={"enemyCircleText_" + en.name}
+          key={"enemyCircleText_" + en.name}
+          draggable={false}
+        >{en.name ? en.name.substr(0, Math.min(3, en.name.length)) : ""}</text>
       )
     })  
     return objs
