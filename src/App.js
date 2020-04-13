@@ -9,7 +9,7 @@ let socket
 
 if (window.location.hostname === "localhost")
     socket = window.io("localhost:5000")
-else socket = window.io("http://dungeons-and-dragons-server.herokuapp.com")
+else socket = window.io("https://dungeons-and-dragons-server.herokuapp.com")
 
 let action = undefined
 
@@ -46,6 +46,7 @@ class App extends Component {
       showMenu: true,
       modalVisible: false,
       modalClose: modalValue => true,
+      modalDefault: 0,
       nameModalVisible: false,
       nameModalClose: name => true,
       speciesModalVisible: false,
@@ -466,6 +467,7 @@ class App extends Component {
             this.setState({modalVisible: false})
           }}
           abort={() => this.setState({modalVisible: false})}
+          default={0/*this.state.modalDefault*/}
         />
         {/* SPECIES MODAL */}
         <SpeciesModal 
@@ -541,7 +543,7 @@ class App extends Component {
   selectionBox(){
     if(!this.state.selection_name) return <React.Fragment>
       <div id="selectionBox" style={{opacity: 0, visibility: "none", pointerEvents: "none"}} />
-      <div id="selectionDamageButton" style={{opacity: 0, visibility: "none", pointerEvents: "none"}}>DAMAGE</div>
+      <div id="selectionBoxButtons" style={{opacity: 0, visibility: "none", pointerEvents: "none"}}>DAMAGE</div>
     </React.Fragment>
 
     let inMovingStyle = this.state.moving ? {opacity: 0.5, pointerEvents: "none"} : {} // for box and buttons
@@ -552,7 +554,17 @@ class App extends Component {
           {
             this.getSelectionData("type") === "player" || this.state.isMaster ? 
               <React.Fragment>
-                <span className="selectText">{this.getSelectionData("hp")}</span>{"/" + this.getSelectionData("max_hp")}
+                <span onClick={() => {
+                  if(this.getSelectionData("type") === "player" && (this.getSelectionData("name") === this.state.name || this.state.isMaster)){
+                    this.setState({
+                      modalVisible: true,
+                      modalClose: value => socket.emit("changePlayerMaxHp", this.getSelectionData("name"), value),
+                      modalDefault: this.getSelectionData("max_hp"),
+                    })
+                  }
+                }} style={{cursor: "pointer"}}>
+                  <span className="selectText">{this.getSelectionData("hp")}</span>{"/" + this.getSelectionData("max_hp")}
+                </span>
               </React.Fragment>
             :
               <React.Fragment>
@@ -564,7 +576,19 @@ class App extends Component {
         {
           this.getSelectionData("type") === "player" || this.state.isMaster ?
             <React.Fragment>
-              <div id="selectedCa" className="selectText">{this.getSelectionData("ca")}</div>
+              <div 
+                id="selectedCa" className="selectText"
+                onClick={() => {
+                  if(this.getSelectionData("type") === "player" && (this.getSelectionData("name") === this.state.name || this.state.isMaster)){
+                    this.setState({
+                      modalVisible: true,
+                      modalClose: value => socket.emit("changePlayerCA", this.getSelectionData("name"), value),
+                      modalDefault: this.getSelectionData("ca"),
+                    })
+                  }
+                }} 
+                style={{cursor: "pointer"}}
+              >{this.getSelectionData("ca")}</div>
               <div>C.A.</div>
             </React.Fragment>
           : null
@@ -594,7 +618,8 @@ class App extends Component {
           onClick={() => {
             this.setState({
               modalVisible: true,
-              modalClose: value => this.hp_delta_selected(-value) 
+              modalClose: value => this.hp_delta_selected(-value),
+              modalDefault: 0,
             })
           }}
         >DAMAGE</div>
@@ -603,10 +628,15 @@ class App extends Component {
           onClick={() => {
             this.setState({
               modalVisible: true,
-              modalClose: value => this.hp_delta_selected(+value) 
+              modalClose: value => this.hp_delta_selected(+value),
+              modalDefault: 0,
             })
           }}
         >HEAL</div>
+        {this.state.isMaster && this.getSelectionData("type") === "enemy" ? <div 
+          id="selectionRemoveButton" className="selectionBoxButton"
+          onClick={() => socket.emit("removeEnemie", this.getSelectionData("name"))}
+        >REMOVE</div> : null}
       </div>
     </React.Fragment>
   }
@@ -623,6 +653,7 @@ class App extends Component {
           cy={p.y * this.state.cellSize + this.state.cellSize / 2} 
           r={this.state.cellSize * 0.8 / 2}
           fill={p.color}
+          opacity={p.hp > 0 ? 1 : .5}
           className={
             "playerCircle" + (!selected ? " playerCircleTransition" : "") + (selected ? " selectedCircle" : "") // TODO playerCircleTransition should care about dragged if selected
           }
@@ -635,7 +666,8 @@ class App extends Component {
         <text 
           x={p.x * this.state.cellSize + this.state.cellSize / 2} 
           y={p.y * this.state.cellSize + this.state.cellSize / 2 + 2} 
-          fill={"white"}
+          fill={p.hp > 0 ? "white" : "var(--backColor)"}
+          opacity={p.hp > 0 ? 1 : .5}
           textAnchor="middle"
           alignmentBaseline="middle"
           className={
@@ -664,13 +696,15 @@ class App extends Component {
           id={"enemyCircle_" + en.name}
           key={"enemyCircle_" + en.name}
           draggable={false}
+          opacity={en.hp > 0 ? 1 : .5}
         ></circle>
       )
       objs.push(
         <text 
           x={en.x * this.state.cellSize + this.state.cellSize / 2 + 1} 
           y={en.y * this.state.cellSize + this.state.cellSize / 2 + 3} 
-          fill={"white"}
+          fill={en.hp > 0 ? "white" : "var(--backColor)"}
+          opacity={en.hp > 0 ? 1 : .5}
           textAnchor="middle"
           alignmentBaseline="middle"
           className={

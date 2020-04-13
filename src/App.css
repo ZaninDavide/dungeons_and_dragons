@@ -171,6 +171,10 @@ button::selection, circle::selection, svg::selection{
   background-color: var(--healColor);
 }
 
+#selectionRemoveButton{
+  background-color: var(--alertColor);
+}
+
 #selectedHp, #selectedCa{
   float: right;
 }
