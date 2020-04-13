@@ -260,6 +260,23 @@ input[type="color"] {
   z-index: 11;
 }
 
+#diceButton{
+  background-color: var(--selectColor);
+  color: var(--backColor);
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  height: 30px;
+  width: 30px;
+  padding: 5px;
+  line-height: 30px;
+  border-radius: var(--radius);
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 25px;
+  text-align: center;
+}
+
 .selectText{
   color: var(--selectColor);
 }
@@ -273,7 +290,7 @@ input[type="color"] {
   height: 100vh;
 }
 
-#modalPlusButton, #modalMinusButton, #modalOkButton{
+#modalPlusButton, #modalMinusButton, #modalOkButton, #diceModalOkButton{
   display: inline-block;
   width: 50px;
   height: 30px;
@@ -295,6 +312,10 @@ input[type="color"] {
   text-align: center;
 
   margin-top: 20px;
+}
+
+#diceModalOkButton{
+  margin-top: 10px !important;
 }
 
 #modalOkButton{
@@ -330,6 +351,22 @@ input[type="color"] {
   margin-top: calc((100vh - 180px) / 3);
 
   padding-top: 15px;
+
+  background-color: var(--backColor);
+  text-align: center;
+
+  border-radius: var(--radius);
+}
+
+#DiceModal{
+  width: 300px;
+
+  margin-left: calc((100vw - 300px - 30px) / 2);
+  margin-right: calc((100vw - 300px - 30px) / 2);
+
+  margin-top: calc((100vh - 230px) / 3);
+
+  padding: 15px;
 
   background-color: var(--backColor);
   text-align: center;
@@ -461,4 +498,25 @@ input[type="color"] {
   margin-top: 20px;
   font-size: 25px;
   text-align: center;
+}
+
+.diceModalButton{
+  display: inline-block;
+  width: 50px;
+  height: 40px;
+  line-height: 40px;
+  margin-left: 5px;
+  margin-right: 5px;
+  background-color: var(--selectColor);
+  color: var(--backColor);
+  border-radius: var(--radius);
+  font-size: 20px;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+#diceModalSumLabel{
+  font-size: 20px;
+  font-weight: bold;
+  margin: 0px;
 }

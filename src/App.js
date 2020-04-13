@@ -3,6 +3,7 @@ import './App.css';
 import Modal from "./Modal";
 import NameModal from "./NameModal";
 import SpeciesModal from "./SpeciesModal";
+import DiceModal from "./DiceModal";
 
 let socket
 
@@ -49,6 +50,8 @@ class App extends Component {
       nameModalClose: name => true,
       speciesModalVisible: false,
       speciesModalClose: (name, hp, ca) => true,
+      moving: false,
+      diceModalVisible: false,
     }
     
     this.mainRef = React.createRef()
@@ -190,8 +193,18 @@ class App extends Component {
   }
 
   change_selected_color(color){
-    // change the color of the selection
-    socket.emit("color", this.state.selection_name, color)
+    let type = this.getSelectionData("type")
+    if(type === "player"){
+      // change the color of the selection
+      socket.emit("color", this.state.selection_name, color)
+    }else if(type === "enemy"){
+      let sp = this.getSelectionData("species")
+      if(!this.state.species[sp]) return false
+
+      // change the color of the selection
+      socket.emit("speciesColor", sp, color)
+
+    }
   }
 
   hp_delta_selected(delta){
@@ -256,7 +269,10 @@ class App extends Component {
     }else if(!free){
       // SET UP FOR MOVING
       action = "move"
+
       moved = false
+      this.setState({moving: false})
+
       this.trySelect(cell)
     }
   }
@@ -277,16 +293,26 @@ class App extends Component {
       })
 
       dragged = true
+
     }else if(action === "move"){
       let coor = this.getCoords(e)
       let cell = this.coordsToCell(coor)
 
       this.dragCircleRef.current.setAttribute("cx", cell.x * this.state.cellSize + this.state.cellSize / 2)
       this.dragCircleRef.current.setAttribute("cy", cell.y * this.state.cellSize + this.state.cellSize / 2)
-      this.dragCircleRef.current.setAttribute("fill", this.getSelectionData("color"))
       this.dragCircleRef.current.setAttribute("opacity", .6)
 
+      let type = this.getSelectionData("type")
+      let color = "pink"
+      if(type === "player"){
+        color = this.getSelectionData("color") || "pink"
+      }else if(type === "enemy"){
+        color = this.state.species[this.getSelectionData("species")].color || "pink"
+      }
+      this.dragCircleRef.current.setAttribute("fill", color)
+
       moved = true
+      this.setState({moving: true})
     }
   }
 
@@ -312,10 +338,12 @@ class App extends Component {
 
     action = undefined
     moved = false
+    this.setState({moving: false})
     viewX_before = 0
     viewY_before = 0
     downX = 0
     downY = 0
+
     dragged = false
 
     this.dragCircleRef.current.setAttribute("cx", 0)
@@ -343,8 +371,6 @@ class App extends Component {
           ]}
           <h3>Players:</h3>
           {this.getPlayers()}
-          <h3>Enemies:</h3>
-          {this.getEnemies()}
           { // THINGS VISIBLE ONLY TO THE MASTER
             (() => {
               if(this.state.isMaster){
@@ -370,6 +396,8 @@ class App extends Component {
               }
             })()
           }
+          <h3>Enemies:</h3>
+          {this.getEnemies()}
         </div>
         <div 
           id="main"
@@ -426,6 +454,10 @@ class App extends Component {
         <div id="menuButton" onClick={this.showHideMenu}>
           MENU
         </div>
+        {/* DICE BUTTON */}
+        <div id="diceButton" onClick={() => this.setState({diceModalVisible: true})}>
+          %
+        </div>
         {/* MODAL */}
         <Modal 
           visible={this.state.modalVisible}
@@ -453,6 +485,14 @@ class App extends Component {
           }}
           abort={() => this.setState({nameModalVisible: false})}
           default={"Name"}
+        />
+        {/* DICE MODAL */}
+        <DiceModal 
+          visible={this.state.diceModalVisible}
+          close={sum => {
+            this.setState({diceModalVisible: false})
+          }}
+          abort={() => this.setState({diceModalVisible: false})}
         />
       </div>
     );
@@ -488,7 +528,7 @@ class App extends Component {
     return Object.values(this.state.species).map(sp => (
       <div className="speciesItem"
         onClick={() => {
-          socket.emit("newEnemy", sp.name[0].toUpperCase() + (this.state.enemies.length + 1).toString(), sp.name)
+          socket.emit("newEnemy", sp.name)
         }}
       >
         <div className="speciesName">{sp.name}</div>
@@ -504,8 +544,10 @@ class App extends Component {
       <div id="selectionDamageButton" style={{opacity: 0, visibility: "none", pointerEvents: "none"}}>DAMAGE</div>
     </React.Fragment>
 
+    let inMovingStyle = this.state.moving ? {opacity: 0.5, pointerEvents: "none"} : {} // for box and buttons
+
     return <React.Fragment>
-      <div id="selectionBox">
+      <div id="selectionBox" style={inMovingStyle}>
         <div id="selectedHp">
           {
             this.getSelectionData("type") === "player" || this.state.isMaster ? 
@@ -527,7 +569,18 @@ class App extends Component {
             </React.Fragment>
           : null
         }
-        <div id="color-picker-wrapper" style={{backgroundColor: this.getSelectionData("color")}}><input 
+        <div id="color-picker-wrapper" 
+          style={(() => {
+            let type = this.getSelectionData("type")
+            if(type === "player"){
+              return {backgroundColor: this.getSelectionData("color")}
+            }else if(type === "enemy"){
+              let sp = this.getSelectionData("species")
+              if(!this.state.species[sp]) return {backgroundColor: "#ff00ff"}
+              return {backgroundColor: this.state.species[sp].color}
+            }
+          })()}
+        ><input 
           type="color" 
           onChange={e => {
             this.change_selected_color(e.target.value)
@@ -535,7 +588,7 @@ class App extends Component {
           value={this.getSelectionData("color")}
         /></div>
       </div>
-      <div id="selectionBoxButtons">
+      <div id="selectionBoxButtons" style={inMovingStyle}>
         <div 
           id="selectionDamageButton" className="selectionBoxButton"
           onClick={() => {
@@ -603,7 +656,7 @@ class App extends Component {
           cx={en.x * this.state.cellSize + this.state.cellSize / 2} 
           cy={en.y * this.state.cellSize + this.state.cellSize / 2} 
           r={this.state.cellSize * 0.8 / 2}
-          fill={en.color}
+          fill={this.state.species[en.species] ? this.state.species[en.species].color : "pink"}
           className={
             // really this is an ENEMY
             "playerCircle" + (!selected ? " playerCircleTransition" : "") + (selected ? " selectedCircle" : "") // TODO playerCircleTransition should care about dragged if selected
