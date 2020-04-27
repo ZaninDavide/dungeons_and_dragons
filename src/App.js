@@ -11,8 +11,6 @@ if (window.location.hostname === "localhost")
     socket = window.io("localhost:5000")
 else socket = window.io("https://dungeons-and-dragons-server.herokuapp.com")
 
-let action = undefined
-
 // drag
 let viewX_before = 0
 let viewY_before = 0
@@ -22,6 +20,12 @@ let dragged = false
 
 // move
 let moved = false
+
+// true
+let drawedCells = {}
+
+// avoid transitions while zooming
+let last_cellSize = 70
 
 class App extends Component {
   constructor(props){
@@ -36,8 +40,9 @@ class App extends Component {
       players: [],
       enemies: [],
       species: {},
-      cellSize: 75,
-      action: "drag",
+      walls: [],
+      cellSize: 70,
+      action: undefined,
       viewX: -vw / 2,
       viewY: -vh / 3,
       viewWidth: 500,
@@ -70,10 +75,12 @@ class App extends Component {
     this.mouseMove = this.mouseMove.bind(this)
     this.mouseUp   = this.mouseUp.bind(this)
     this.showHideMenu = this.showHideMenu.bind(this)
+    this.centerGrid = this.centerGrid.bind(this)
 
     this.trySelect = this.trySelect.bind(this)
-    this.isFree    = this.isFree.bind(this)
+    this.getCell   = this.getCell.bind(this)
     this.deselect  = this.deselect.bind(this)
+    this.selectEntity = this.selectEntity.bind(this)
 
     this.coordsToCell = this.coordsToCell.bind(this)
 
@@ -101,8 +108,15 @@ class App extends Component {
       })
     })
 
+    socket.on("walls", data => {
+      this.setState({
+        walls: data.walls
+      })
+    })
+
 
     window.addEventListener('resize', this.resize);
+    setInterval(() => socket.emit("keepAlive"), 1000 * 60);
   }
 
   // ------------------------- SERVER -------------------------
@@ -111,7 +125,7 @@ class App extends Component {
     this.setState({
       nameModalVisible: true,
       nameModalClose: name => {
-        if(!name) return
+        if(!name || this.state.players.filter(p => p.name === name).length > 0) return
 
         this.setState({ name })
         socket.emit("join game", name)
@@ -122,24 +136,39 @@ class App extends Component {
 
   // ------------------------- APP -------------------------
 
-  isFree(cell){
-    let found = false
+  getCell(cell){
+    let res = undefined
+
     // search in players
     this.state.players.forEach(p => {
       if(p.x === cell.x && p.y === cell.y){
-        found = true
+        res = {free: false, obj: p, canMove: true, canSelect: true}
       }
     })
-    if(!found){
+    
+    if(!res){
       // search in enemies
       this.state.enemies.forEach(en => {
         if(en.x === cell.x && en.y === cell.y){
-          found = true
+          res = {x: cell.x, y: cell.y, free: false, obj: en, canMove: true, canSelect: true}
         }
       })
     }
 
-    return !found
+    if(!res){
+      // search in walls
+      this.state.walls.forEach(w => {
+        if(w.x === cell.x && w.y === cell.y){
+          res = {x: cell.x, y: cell.y, free: false, obj: w, canMove: false, canSelect: false}
+        }
+      })
+    }
+
+    if(res){
+      return res
+    }else{
+      return {x: cell.x, y: cell.y, free: true, obj: null, canMove: false, canSelect: false}
+    }
   }
 
   getSelectionData(attr){
@@ -186,6 +215,12 @@ class App extends Component {
     }
 
     return found
+  }
+
+  selectEntity(entity){
+    this.setState({
+      selection_name: entity.name
+    })
   }
 
   move_selected(cell){
@@ -249,107 +284,153 @@ class App extends Component {
   }
 
   mouseDown(e){
-    let coor = this.getCoords(e)
-    let cell = this.coordsToCell(coor)
-    let free = this.isFree(cell)
-    if(free){
-      // SET UP FOR DRAGGING
-      action = "drag"
-
-      downX = coor.x
-      downY = coor.y
-      viewX_before = this.state.viewX
-      viewY_before = this.state.viewY
-
-      dragged = false
+    if(this.state.action !== "addWalls" && this.state.action !== "removeWalls"){ 
+      // if not drawing wall
+      let coor = this.getCoords(e)
+      let cell = this.coordsToCell(coor)
+      let cellInfo = this.getCell(cell)
       
-      this.dragCircleRef.current.setAttribute("cx", 0)
-      this.dragCircleRef.current.setAttribute("cy", 0)
-      this.dragCircleRef.current.setAttribute("opacity", 0)
-
-    }else if(!free){
-      // SET UP FOR MOVING
-      action = "move"
-
-      moved = false
-      this.setState({moving: false})
-
-      this.trySelect(cell)
+      if(!cellInfo.canMove){
+        // SET UP FOR DRAGGING
+        this.setState({action: "drag"})
+  
+        downX = coor.x
+        downY = coor.y
+        viewX_before = this.state.viewX
+        viewY_before = this.state.viewY
+  
+        dragged = false
+        
+        this.dragCircleRef.current.setAttribute("cx", 0)
+        this.dragCircleRef.current.setAttribute("cy", 0)
+        this.dragCircleRef.current.setAttribute("opacity", 0)
+  
+      }else{
+        // SET UP FOR MOVING
+        this.setState({action: "move"})
+  
+        moved = false
+        this.setState({moving: false})
+  
+        //this.trySelect(cell)
+        if(cellInfo.canSelect){
+          this.selectEntity(cellInfo.obj)
+        }
+      }
+    }else{
+      drawedCells = {}
     }
   }
 
   mouseMove(e){
-    if(action === "drag"){
-      let coor = this.getCoords(e)
+    if(this.state.action !== "addWalls" && this.state.action !== "removeWalls"){ 
+      // if not drawing wall
+      if(this.state.action === "drag"){
+        let coor = this.getCoords(e)
 
-      let clientX = coor.x
-      let clientY = coor.y
+        let clientX = coor.x
+        let clientY = coor.y
 
-      let deltaX = clientX - downX
-      let deltaY = clientY - downY
-      
-      this.setState({
-        viewX: viewX_before - deltaX,
-        viewY: viewY_before - deltaY,
-      })
+        let deltaX = clientX - downX
+        let deltaY = clientY - downY
+        
+        this.setState({
+          viewX: viewX_before - deltaX,
+          viewY: viewY_before - deltaY,
+        })
 
-      dragged = true
+        dragged = true
 
-    }else if(action === "move"){
-      let coor = this.getCoords(e)
-      let cell = this.coordsToCell(coor)
+      }else if(this.state.action === "move"){
+        let coor = this.getCoords(e)
+        let cell = this.coordsToCell(coor)
 
-      this.dragCircleRef.current.setAttribute("cx", cell.x * this.state.cellSize + this.state.cellSize / 2)
-      this.dragCircleRef.current.setAttribute("cy", cell.y * this.state.cellSize + this.state.cellSize / 2)
-      this.dragCircleRef.current.setAttribute("opacity", .6)
+        this.dragCircleRef.current.setAttribute("cx", cell.x * this.state.cellSize + this.state.cellSize / 2)
+        this.dragCircleRef.current.setAttribute("cy", cell.y * this.state.cellSize + this.state.cellSize / 2)
+        this.dragCircleRef.current.setAttribute("opacity", .6)
 
-      let type = this.getSelectionData("type")
-      let color = "pink"
-      if(type === "player"){
-        color = this.getSelectionData("color") || "pink"
-      }else if(type === "enemy"){
-        color = this.state.species[this.getSelectionData("species")].color || "pink"
+        let type = this.getSelectionData("type")
+        let color = "pink"
+        if(type === "player"){
+          color = this.getSelectionData("color") || "pink"
+        }else if(type === "enemy"){
+          color = this.state.species[this.getSelectionData("species")].color || "pink"
+        }
+        this.dragCircleRef.current.setAttribute("fill", color)
+
+        moved = true
+        this.setState({moving: true})
       }
-      this.dragCircleRef.current.setAttribute("fill", color)
-
-      moved = true
-      this.setState({moving: true})
+    }else if(e.buttons === 1){ 
+      // adding or removing walls
+      let coor = this.getCoords(e)
+      let cellInfo = this.getCell(this.coordsToCell(coor))
+      if(!drawedCells[cellInfo.x.toString() + "," + cellInfo.y.toString()]){
+        if(cellInfo.free && this.state.action === "addWalls"){
+          socket.emit("addWall", cellInfo.x, cellInfo.y)
+          drawedCells[cellInfo.x.toString() + "," + cellInfo.y.toString()] = true
+        }else if(!cellInfo.free && this.state.action === "removeWalls"){
+          if(cellInfo.obj.type === "wall"){
+            socket.emit("removeWall", cellInfo.x, cellInfo.y)
+            drawedCells[cellInfo.x.toString() + "," + cellInfo.y.toString()] = true
+          }
+        }
+      }
     }
   }
 
   mouseUp(e){
-    if(!dragged && !moved){
-      // CLICK
-      let coor = this.getCoords(e)
-      let cell = this.coordsToCell({x: coor.x, y: coor.y})
-      let free = this.isFree(cell)
-      if(free){
-        this.deselect()
-      }else{
-        this.trySelect(cell)
-      }
-    }
-
-    if(action === "move" && moved){
+    if(this.state.action !== "addWalls" && this.state.action !== "removeWalls"){
+      // if not drawing walls 
+      if(!dragged && !moved){
+        // CLICK
         let coor = this.getCoords(e)
         let cell = this.coordsToCell({x: coor.x, y: coor.y})
-        let free = this.isFree(cell)
-        if(free) this.move_selected(cell)
+        let cellInfo = this.getCell(cell)
+        if(!cellInfo.canSelect){
+          this.deselect()
+        }else{
+          // this.trySelect(cell)
+          if(cellInfo.canSelect){
+            this.selectEntity(cellInfo.obj)
+          }
+        }
+      }
+    
+      if(this.state.action === "move" && moved){
+        let coor = this.getCoords(e)
+        let cell = this.coordsToCell({x: coor.x, y: coor.y})
+        let cellInfo = this.getCell(cell)
+        
+        if(cellInfo.free) this.move_selected(cell)
+      }
+
+      moved = false
+      this.setState({action: undefined, moving: false})
+      viewX_before = 0
+      viewY_before = 0
+      downX = 0
+      downY = 0
+
+      dragged = false
+
+      this.dragCircleRef.current.setAttribute("cx", 0)
+      this.dragCircleRef.current.setAttribute("cy", 0)
+      this.dragCircleRef.current.setAttribute("opacity", 0)
+    }else if(drawedCells){
+      // adding or removing walls
+      let coor = this.getCoords(e)
+      let cellInfo = this.getCell(this.coordsToCell(coor))
+      if(cellInfo.free && this.state.action === "addWalls"){
+        socket.emit("addWall", cellInfo.x, cellInfo.y)
+      }else if(!cellInfo.free && this.state.action === "removeWalls"){
+        if(cellInfo.obj.type === "wall"){
+          socket.emit("removeWall", cellInfo.x, cellInfo.y)
+        }
+      }
+      drawedCells = {}
     }
 
-    action = undefined
-    moved = false
-    this.setState({moving: false})
-    viewX_before = 0
-    viewY_before = 0
-    downX = 0
-    downY = 0
-
-    dragged = false
-
-    this.dragCircleRef.current.setAttribute("cx", 0)
-    this.dragCircleRef.current.setAttribute("cy", 0)
-    this.dragCircleRef.current.setAttribute("opacity", 0)
   }
 
   showHideMenu(){
@@ -358,17 +439,26 @@ class App extends Component {
     })
   }
 
+  centerGrid(){
+    const vw = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
+    const vh = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
+    this.setState({
+      viewX: -vw / 2,
+      viewY: -vh / 3
+    })
+  }
+
   // ------------------------- RENDER -------------------------
 
   render(){
     return (
       <div id="App" key="App">
-        <div id="side" className={this.state.showMenu ? "" : "hiddenMenu"}>
+        <div id="side" className={!this.state.showMenu || this.state.action === "addWalls" || this.state.action === "removeWalls" ? "hiddenMenu" : ""}>
           {this.state.name ? 
             <h2 id="nameTitle">{this.state.name}</h2> 
           : [
-            <button id="enterButton"  onClick={() => this.enterGame()}>Play</button>,
-            <button id="masterButton" onClick={() => this.setState({name: "Master", isMaster: true})}>Master</button>
+            <button id="enterButton" key="enterButton"  onClick={() => this.enterGame()}>Play</button>,
+            <button id="masterButton" key="masterButton" onClick={() => this.setState({name: "Master", isMaster: true})}>Master</button>
           ]}
           <h3>Players:</h3>
           {this.getPlayers()}
@@ -411,6 +501,13 @@ class App extends Component {
           onTouchStart={this.mouseDown}
           onTouchMove={this.mouseMove}
           onTouchEnd={this.mouseUp}
+          onDoubleClick={this.centerGrid}
+          onWheel={e => {
+            const d = 1 - e.deltaY * 0.001
+            this.setState(old => {
+              return {cellSize: Math.max(old.cellSize * d, 10)}
+            })
+          }}
         >
           <svg 
             width={this.state.viewWidth} 
@@ -420,10 +517,10 @@ class App extends Component {
           >
             <pattern id="gridPattern" x="0" y="0" width={this.state.cellSize} height={this.state.cellSize} patternUnits="userSpaceOnUse">
               <rect x="0" y="0" width={this.state.cellSize} height={this.state.cellSize} 
-                fill="rgba(0, 0, 0, 0)" 
-                stroke="var(--backColor)" 
-                strokeWidth="2px"
-                opacity=".3"
+                fill="lightgray"
+              />
+              <rect x="1" y="1" width={this.state.cellSize - 2} height={this.state.cellSize - 2} 
+                fill="white"
               />
             </pattern>
             <rect 
@@ -434,12 +531,13 @@ class App extends Component {
               height={2000 * this.state.cellSize}
               fill="url(#gridPattern)"
             />
+            {this.getSVG()}
             <circle
               id="centerCircle"
               cx="0"
               cy="0"
-              r={this.state.cellSize / 25}
-              fill="var(--backColor)"
+              r={this.state.cellSize / 50 + 3}
+              fill="var(--selectColor)"
               draggable={false}
             />
             <circle
@@ -447,18 +545,28 @@ class App extends Component {
               cx={0} cy={0} r={this.state.cellSize * 0.8 / 2}
               fill={"black"} opacity={0} draggable={false}
             ></circle>
-            {this.getSVG()}
           </svg>
         </div>
         {this.selectionBox()}
-        {/* MENU BUTTON */}
-        <div id="menuButton" onClick={this.showHideMenu}>
-          MENU
-        </div>
-        {/* DICE BUTTON */}
-        <div id="diceButton" onClick={() => this.setState({diceModalVisible: true})}>
-          %
-        </div>
+        {this.state.action !== "addWalls" && this.state.action !== "removeWalls" ?
+          <React.Fragment>
+            {/* MENU BUTTON */}
+            <div id="menuButton" onClick={this.showHideMenu}>
+              MENU
+            </div>
+            {/* DICE BUTTON */}
+            <div id="diceButton" onClick={() => this.setState({diceModalVisible: true})}>
+              %
+            </div>
+          </React.Fragment>
+        : 
+          <React.Fragment>
+            {/* STOP DRAWING BUTTON */}
+            <div id="stopDrawingButton" onClick={() => this.setState({action: undefined})}>
+              DONE
+            </div>
+          </React.Fragment>
+        }
         {/* MODAL */}
         <Modal 
           visible={this.state.modalVisible}
@@ -496,6 +604,14 @@ class App extends Component {
           }}
           abort={() => this.setState({diceModalVisible: false})}
         />
+        {this.state.action !== "addWalls" && this.state.action !== "removeWalls" ? 
+          <React.Fragment>  
+            <div id="addWallsButton" className={this.state.showMenu ? "" : "wallButtonClosedMenu"} onClick={() => this.setState({action: "addWalls", selection_name: undefined})}>DRAW</div>
+            <div id="removeWallsButton" className={this.state.showMenu ? "" : "wallButtonClosedMenu"} onClick={() => this.setState({action: "removeWalls", selection_name: undefined})}>ERASE</div>
+            <div id="zoomOutButton" className={this.state.showMenu ? "" : "zoomButtonClosedMenu"} onClick={() => this.setState(old => {return {cellSize: Math.max(old.cellSize * 9 / 10, 10)}})}>-</div>
+            <div id="zoomInButton" className={this.state.showMenu ? "" : "zoomButtonClosedMenu"} onClick={() => this.setState(old => {return {cellSize: old.cellSize * 10 / 9}})}>+</div>
+          </React.Fragment>
+        : null}
       </div>
     );
   }
@@ -562,7 +678,7 @@ class App extends Component {
                       modalDefault: this.getSelectionData("max_hp"),
                     })
                   }
-                }} style={{cursor: "pointer"}}>
+                }} style={{cursor: (this.getSelectionData("type") === "player" && (this.getSelectionData("name") === this.state.name || this.state.isMaster)) ? "pointer" : ""}}>
                   <span className="selectText">{this.getSelectionData("hp")}</span>{"/" + this.getSelectionData("max_hp")}
                 </span>
               </React.Fragment>
@@ -587,11 +703,31 @@ class App extends Component {
                     })
                   }
                 }} 
-                style={{cursor: "pointer"}}
+                style={{cursor: (this.getSelectionData("type") === "player" && (this.getSelectionData("name") === this.state.name || this.state.isMaster)) ? "pointer" : ""}}
               >{this.getSelectionData("ca")}</div>
               <div>C.A.</div>
-            </React.Fragment>
+          </React.Fragment>
           : null
+        }
+        {
+          this.getSelectionData("type") === "player" ?
+            <React.Fragment>
+              <div 
+                id="selectedIni" className="selectText"
+                onClick={() => {
+                  if(this.getSelectionData("type") === "player" && (this.getSelectionData("name") === this.state.name || this.state.isMaster)){
+                    this.setState({
+                      modalVisible: true,
+                      modalClose: value => socket.emit("changePlayerIni", this.getSelectionData("name"), value),
+                      modalDefault: this.getSelectionData("ini"),
+                    })
+                  }
+                }} 
+                style={{cursor: (this.getSelectionData("type") === "player" && (this.getSelectionData("name") === this.state.name || this.state.isMaster)) ? "pointer" : ""}}
+              >{this.getSelectionData("ini")}</div>
+              <div>Initiative</div>
+            </React.Fragment>
+          : null 
         }
         <div id="color-picker-wrapper" 
           style={(() => {
@@ -609,7 +745,16 @@ class App extends Component {
           onChange={e => {
             this.change_selected_color(e.target.value)
           }}
-          value={this.getSelectionData("color")}
+          value={(() => {
+            let type = this.getSelectionData("type")
+            if(type === "player"){
+              return this.getSelectionData("color")
+            }else if(type === "enemy"){
+              let sp = this.getSelectionData("species")
+              if(!this.state.species[sp]) return "#ff00ff"
+              return this.state.species[sp].color
+            }
+          })()}
         /></div>
       </div>
       <div id="selectionBoxButtons" style={inMovingStyle}>
@@ -643,19 +788,36 @@ class App extends Component {
 
   getSVG(){
     let objs = []
+    let just_zoomed = this.state.cellSize !== last_cellSize
+    if(just_zoomed) last_cellSize = this.state.cellSize
+
+    // WALLS
+    this.state.walls.forEach(w => {
+      objs.push(
+        <rect
+          x={w.x * this.state.cellSize - 1} 
+          y={w.y * this.state.cellSize - 1} 
+          width={this.state.cellSize + 2}
+          height={this.state.cellSize + 2}
+          fill={"var(--backColor)"}
+        ></rect>
+      )
+    })
 
     // PLAYER CIRCLE
     this.state.players.forEach(p => {
       let selected = this.state.selection_name ? ( p.name === this.state.selection_name ? true : false ) : false
+      let cx = p.x * this.state.cellSize + this.state.cellSize / 2
+      let cy = p.y * this.state.cellSize + this.state.cellSize / 2
       objs.push(
         <circle 
-          cx={p.x * this.state.cellSize + this.state.cellSize / 2} 
-          cy={p.y * this.state.cellSize + this.state.cellSize / 2} 
+          cx={cx} 
+          cy={cy}
           r={this.state.cellSize * 0.8 / 2}
           fill={p.color}
           opacity={p.hp > 0 ? 1 : .5}
           className={
-            "playerCircle" + (!selected ? " playerCircleTransition" : "") + (selected ? " selectedCircle" : "") // TODO playerCircleTransition should care about dragged if selected
+            "playerCircle" + (!selected & !just_zoomed ? " playerCircleTransition" : "") + (selected ? " selectedCircle" : "") // TODO playerCircleTransition should care about dragged if selected
           }
           id={"playerCircle_" + p.name}
           key={"playerCircle_" + p.name}
@@ -663,15 +825,19 @@ class App extends Component {
         ></circle>
       )
       objs.push(
-        <text 
-          x={p.x * this.state.cellSize + this.state.cellSize / 2} 
-          y={p.y * this.state.cellSize + this.state.cellSize / 2 + 2} 
+        <text
+          x={0}
+          y={0}
+          style={{
+            transform: `translate(${cx}px, ${cy + 2}px)`,
+            fontSize: 25 * this.state.cellSize / 70
+          }}
           fill={p.hp > 0 ? "white" : "var(--backColor)"}
           opacity={p.hp > 0 ? 1 : .5}
           textAnchor="middle"
           alignmentBaseline="middle"
           className={
-            "playerCircleText" + (selected ? " selectedCircleText" : "")
+            "playerCircleText" + (selected ? " selectedCircleText" : "") + (!selected & !just_zoomed ? " playerCircleTextTransition" : "")
           }
           id={"playerCircleText_" + p.name}
           key={"playerCircleText_" + p.name}
@@ -683,15 +849,17 @@ class App extends Component {
     // ENEMY CIRCLE
     this.state.enemies.forEach(en => {
       let selected = this.state.selection_name ? ( en.name === this.state.selection_name ? true : false ) : false
+      let cx = en.x * this.state.cellSize + this.state.cellSize / 2
+      let cy = en.y * this.state.cellSize + this.state.cellSize / 2
       objs.push(
         <circle 
-          cx={en.x * this.state.cellSize + this.state.cellSize / 2} 
-          cy={en.y * this.state.cellSize + this.state.cellSize / 2} 
+          cx={cx} 
+          cy={cy}
           r={this.state.cellSize * 0.8 / 2}
           fill={this.state.species[en.species] ? this.state.species[en.species].color : "pink"}
           className={
             // really this is an ENEMY
-            "playerCircle" + (!selected ? " playerCircleTransition" : "") + (selected ? " selectedCircle" : "") // TODO playerCircleTransition should care about dragged if selected
+            "playerCircle" + (!selected & !just_zoomed ? " playerCircleTransition" : "") + (selected ? " selectedCircle" : "") // TODO playerCircleTransition should care about dragged if selected
           }
           id={"enemyCircle_" + en.name}
           key={"enemyCircle_" + en.name}
@@ -701,15 +869,19 @@ class App extends Component {
       )
       objs.push(
         <text 
-          x={en.x * this.state.cellSize + this.state.cellSize / 2 + 1} 
-          y={en.y * this.state.cellSize + this.state.cellSize / 2 + 3} 
+          x={0}
+          y={0}
+          style={{
+            transform: `translate(${cx}px, ${cy + 2}px)`,
+            fontSize: 25 * this.state.cellSize / 70
+          }}
           fill={en.hp > 0 ? "white" : "var(--backColor)"}
           opacity={en.hp > 0 ? 1 : .5}
           textAnchor="middle"
           alignmentBaseline="middle"
           className={
             // really this is an ENEMY
-            "playerCircleText" + (selected ? " selectedCircleText" : "")
+            "playerCircleText" + (selected ? " selectedCircleText" : "") + (!selected & !just_zoomed ? " playerCircleTextTransition" : "")
           }
           id={"enemyCircleText_" + en.name}
           key={"enemyCircleText_" + en.name}
@@ -717,6 +889,7 @@ class App extends Component {
         >{en.name ? en.name.substr(0, Math.min(3, en.name.length)) : ""}</text>
       )
     })  
+    
     return objs
   }
 }

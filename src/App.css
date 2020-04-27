@@ -19,7 +19,7 @@ html{
   --selectColor: #f3c623;
   --alertColor: #ee2b11;
   --healColor: #83d834;
-  --backColorTransparent: #171616f6;
+  --backColorTransparent: #171616fa;
   --radius: 5px;
 }
 
@@ -175,7 +175,7 @@ button::selection, circle::selection, svg::selection{
   background-color: var(--alertColor);
 }
 
-#selectedHp, #selectedCa{
+#selectedHp, #selectedCa, #selectedIni{
   float: right;
 }
 
@@ -211,11 +211,14 @@ button::selection, circle::selection, svg::selection{
 
 .playerCircleText{
   cursor: pointer;
-  transition-property: x, y;
-  transition-duration: .1s, .1s;
-  transition-timing-function: ease-in-out, ease-in-out;
   font-size: 25px;
   font-weight: bold;
+}
+
+.playerCircleTextTransition{
+  transition-property: transform;
+  transition-duration: .1s;
+  transition-timing-function: ease-in-out;
 }
 
 .selectedCircle{
@@ -261,7 +264,9 @@ input[type="color"] {
   border-radius: var(--radius);
   font-weight: bold;
   cursor: pointer;
-  z-index: 11;
+  z-index: 12;
+  width: 50px;
+  text-align: center;
 }
 
 #diceButton{
@@ -294,11 +299,35 @@ input[type="color"] {
   height: 100vh;
 }
 
-#modalPlusButton, #modalMinusButton, #modalOkButton, #diceModalOkButton{
+#modalPlusButton, #modalMinusButton{
   display: inline-block;
   width: 50px;
   height: 30px;
-  line-height: 30px;
+  line-height: 26px;
+  padding: 5px;
+  margin-left: 5px;
+  margin-right: 5px;
+  border: 0px;
+
+  background-color: var(--selectColor);
+  color: var(--backColor);
+  border-radius: var(--radius);
+  font-weight: bold;
+  font-size: 30px;
+  
+  cursor: pointer;
+  display: inline-block;
+
+  text-align: center;
+
+  margin-top: 20px;
+}
+
+#modalOkButton, #diceModalOkButton{
+  display: inline-block;
+  width: 50px;
+  height: 30px;
+  line-height: 29px;
   padding: 5px;
   margin-left: 5px;
   margin-right: 5px;
@@ -320,6 +349,8 @@ input[type="color"] {
 
 #diceModalOkButton{
   margin-top: 10px !important;
+  min-width: 50px;
+  width: fit-content !important;
 }
 
 #modalOkButton{
@@ -517,10 +548,108 @@ input[type="color"] {
   font-size: 20px;
   font-weight: bold;
   margin-bottom: 10px;
+  cursor: pointer;
 }
 
 #diceModalSumLabel{
   font-size: 20px;
   font-weight: bold;
   margin: 0px;
+}
+
+#addWallsButton{
+  background-color: var(--selectColor);
+  color: var(--backColor);
+  position: absolute;
+  top: 10px;
+  left: 288px;
+  width: 50px;
+  text-align: center;
+  height: 30px;
+  padding: 5px;
+  line-height: 30px;
+  border-radius: var(--radius);
+  font-weight: bold;
+  cursor: pointer;
+  z-index: 11;
+  transition: margin-left .1s ease-in-out;
+}
+
+#removeWallsButton{
+  background-color: var(--selectColor);
+  color: var(--backColor);
+  position: absolute;
+  top: 60px;
+  left: 288px;/*377px*/
+  width: 50px;
+  text-align: center;
+  height: 30px;
+  padding: 5px;
+  line-height: 30px;
+  border-radius: var(--radius);
+  font-weight: bold;
+  cursor: pointer;
+  z-index: 11;
+  transition: margin-left .1s ease-in-out;
+}
+
+.wallButtonClosedMenu, .zoomButtonClosedMenu{
+  margin-left: -280px;
+}
+
+#stopDrawingButton{
+  position: absolute;
+  margin-left: auto;
+  margin-right: auto;
+  left: 0;
+  right: 0;
+  top: 10px;
+  width: 60px;
+  background-color: var(--healColor);
+  color: white;
+  height: 30px;
+  line-height: 30px;
+  border-radius: var(--radius);
+  font-weight: bold;
+  padding: 5px;
+  text-align: center;
+  cursor: pointer;
+}
+
+#zoomOutButton{
+  background-color: var(--selectColor);
+  color: var(--backColor);
+  position: absolute;
+  bottom: 10px;
+  left: 78px;
+  width: 30px;
+  text-align: center;
+  height: 30px;
+  padding: 5px;
+  line-height: 25px;
+  border-radius: var(--radius);
+  font-weight: bold;
+  cursor: pointer;
+  z-index: 11;
+  transition: margin-left .1s ease-in-out;
+  font-size: 24px;
+}
+
+#zoomInButton{
+  background-color: var(--selectColor);
+  color: var(--backColor);
+  position: absolute;
+  bottom: 10px;
+  left: 127px;
+  width: 30px;
+  text-align: center;
+  height: 30px;
+  padding: 5px;
+  line-height: 26px;
+  border-radius: var(--radius);
+  font-weight: bold;
+  cursor: pointer;
+  z-index: 11;
+  transition: margin-left .1s ease-in-out;
+  font-size: 24px;
 }
