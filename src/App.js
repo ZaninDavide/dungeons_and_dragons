@@ -5,11 +5,14 @@ import NameModal from "./NameModal";
 import SpeciesModal from "./SpeciesModal";
 import DiceModal from "./DiceModal";
 
-let socket
-
+let serverURL
 if (window.location.hostname === "localhost")
-    socket = window.io("localhost:5000")
-else socket = window.io("https://dungeons-and-dragons-server.herokuapp.com")
+  serverURL = "localhost:5000"
+else serverURL = "https://dungeons-and-dragons-server.herokuapp.com"
+
+let socket = window.io(serverURL)
+
+if(serverURL === "localhost:5000") serverURL = "http://localhost:5000"
 
 // drag
 let viewX_before = 0
@@ -74,8 +77,10 @@ class App extends Component {
     this.mouseDown = this.mouseDown.bind(this)
     this.mouseMove = this.mouseMove.bind(this)
     this.mouseUp   = this.mouseUp.bind(this)
+    this.mouseWheel   = this.mouseWheel.bind(this)
     this.showHideMenu = this.showHideMenu.bind(this)
     this.centerGrid = this.centerGrid.bind(this)
+    this.openFile = this.openFile.bind(this)
 
     this.trySelect = this.trySelect.bind(this)
     this.getCell   = this.getCell.bind(this)
@@ -89,6 +94,7 @@ class App extends Component {
     this.hp_delta_selected = this.hp_delta_selected.bind(this)
 
     this.getSelectionData = this.getSelectionData.bind(this)
+    this.randomIni = this.randomIni.bind(this)
 
     socket.on("players", data => {
       this.setState({
@@ -116,7 +122,7 @@ class App extends Component {
 
 
     window.addEventListener('resize', this.resize);
-    setInterval(() => socket.emit("keepAlive"), 1000 * 60);
+    setInterval(() => fetch(serverURL + "/keepAlive"), 1000 * 60);
   }
 
   // ------------------------- SERVER -------------------------
@@ -125,8 +131,8 @@ class App extends Component {
     this.setState({
       nameModalVisible: true,
       nameModalClose: name => {
-        if(!name || this.state.players.filter(p => p.name === name).length > 0) return
-
+        if(!name || this.state.players.filter(p => p.name === name && p.has_socket).length > 0) return
+        
         this.setState({ name })
         socket.emit("join game", name)
       }
@@ -142,7 +148,7 @@ class App extends Component {
     // search in players
     this.state.players.forEach(p => {
       if(p.x === cell.x && p.y === cell.y){
-        res = {free: false, obj: p, canMove: true, canSelect: true}
+        res = {x: cell.x, y: cell.y, free: false, obj: p, canMove: true, canSelect: true}
       }
     })
     
@@ -433,6 +439,22 @@ class App extends Component {
 
   }
 
+  mouseWheel(e){
+    let coor = this.getCoords(e)
+    coor.x += this.state.viewX
+    coor.y += this.state.viewY
+  
+    const d = 1 - e.deltaY * 0.001
+
+    this.setState(old => {
+      const new_size = Math.max(old.cellSize * d, 10)
+      const k = new_size / old.cellSize
+      const deltaX = (k - 1) * coor.x
+      const deltaY = (k - 1) * coor.y
+      return {cellSize: new_size, viewX: old.viewX + deltaX, viewY: old.viewY + deltaY}
+    })
+  }
+
   showHideMenu(){
     this.setState(old => {
       return {showMenu: !old.showMenu}
@@ -445,6 +467,52 @@ class App extends Component {
     this.setState({
       viewX: -vw / 2,
       viewY: -vh / 3
+    })
+  }
+
+  download(filename, text) {
+    var element = document.createElement('a');
+    element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+    element.setAttribute('download', filename);
+  
+    element.style.display = 'none';
+    document.body.appendChild(element);
+  
+    element.click();
+  
+    document.body.removeChild(element);
+  }
+
+  openFile(event) {
+    var input = event.target;
+
+    var reader = new FileReader();
+    const s = socket;
+    reader.onload = function(){
+      var text = reader.result;
+      console.log(text)
+      s.emit("load_game", JSON.parse(text))
+    };
+    if(input.files[0]){
+      reader.readAsText(input.files[0]);
+    }
+  };
+
+  // ------------------------- GAME -------------------------
+
+  randomIni(){
+    let calcIni = entity => {
+      const d = (Math.floor(20 * Math.random()) + 1)
+      if(entity.ini !== undefined && entity.ini !== null){
+        return d + entity.ini
+      }else{
+        return d
+      }
+    } 
+    let iniList = [...this.state.players.map(p => {return {name: p.name, riflessi: calcIni(p)}}), ...this.state.enemies.filter(en => en.hp > 0).map(en => {return {name: en.name, riflessi: calcIni(en)}})]
+    iniList.sort((a, b) => b.riflessi - a.riflessi) // the first one is the higher value
+    this.setState({
+      iniList: iniList
     })
   }
 
@@ -502,12 +570,7 @@ class App extends Component {
           onTouchMove={this.mouseMove}
           onTouchEnd={this.mouseUp}
           onDoubleClick={this.centerGrid}
-          onWheel={e => {
-            const d = 1 - e.deltaY * 0.001
-            this.setState(old => {
-              return {cellSize: Math.max(old.cellSize * d, 10)}
-            })
-          }}
+          onWheel={this.mouseWheel}
         >
           <svg 
             width={this.state.viewWidth} 
@@ -562,8 +625,8 @@ class App extends Component {
         : 
           <React.Fragment>
             {/* STOP DRAWING BUTTON */}
-            <div id="stopDrawingButton" onClick={() => this.setState({action: undefined})}>
-              DONE
+            <div id="stopDrawingButton" className="iconText" onClick={() => this.setState({action: undefined})}>
+              done
             </div>
           </React.Fragment>
         }
@@ -606,10 +669,59 @@ class App extends Component {
         />
         {this.state.action !== "addWalls" && this.state.action !== "removeWalls" ? 
           <React.Fragment>  
-            <div id="addWallsButton" className={this.state.showMenu ? "" : "wallButtonClosedMenu"} onClick={() => this.setState({action: "addWalls", selection_name: undefined})}>DRAW</div>
-            <div id="removeWallsButton" className={this.state.showMenu ? "" : "wallButtonClosedMenu"} onClick={() => this.setState({action: "removeWalls", selection_name: undefined})}>ERASE</div>
-            <div id="zoomOutButton" className={this.state.showMenu ? "" : "zoomButtonClosedMenu"} onClick={() => this.setState(old => {return {cellSize: Math.max(old.cellSize * 9 / 10, 10)}})}>-</div>
-            <div id="zoomInButton" className={this.state.showMenu ? "" : "zoomButtonClosedMenu"} onClick={() => this.setState(old => {return {cellSize: old.cellSize * 10 / 9}})}>+</div>
+            <div id="addWallsButton" className={"iconText" + (this.state.showMenu ? "" : " wallButtonClosedMenu")} onClick={() => this.setState({action: "addWalls", selection_name: undefined})}>format_paint</div>
+            <div id="removeWallsButton" className={"iconText" + (this.state.showMenu ? "" : " wallButtonClosedMenu")} onClick={() => this.setState({action: "removeWalls", selection_name: undefined})}>format_color_reset</div>
+            <div id="zoomOutButton" className={"iconText" + (this.state.showMenu ? "" : " zoomButtonClosedMenu")} onClick={() => this.setState(old => {return {cellSize: Math.max(old.cellSize * 9 / 10, 10)}})}>zoom_out</div>
+            <div id="zoomInButton" className={"iconText" + (this.state.showMenu ? "" : " zoomButtonClosedMenu")} onClick={() => this.setState(old => {return {cellSize: old.cellSize * 10 / 9}})}>zoom_in</div>
+            {
+              this.state.isMaster ? 
+                <>
+                  <div id="uploadButton" className={"iconText" + (this.state.showMenu ? "" : " uploadButtonClosedMenu")} onClick={() => {
+                    document.getElementById("fileInput").click()
+                  }}>folder_open</div>
+                  <input type="file" id="fileInput" onChange={this.openFile} style={{position: "absolute", display: "none"}}/>
+                  <div id="downloadButton" className={"iconText" + (this.state.showMenu ? "" : " downloadButtonClosedMenu")}
+                    onClick={() => {
+                      fetch(serverURL + "/game")
+                      .then((response) => {
+                        return response.json();
+                      })
+                      .then((data) => {
+                        let d = new Date()
+                        this.download("D&D game - " + d.toLocaleDateString() + "_" + d.getHours() + "h_" + d.getMinutes() + "m_" + d.getSeconds() + "s", JSON.stringify(data))
+                      });
+                    }}
+                  >save_alt</div>
+                  <div id="iniButton" 
+                    className={"iconText" + (this.state.showMenu ? "" : " iniButtonClosedMenu")}
+                    onClick={!this.state.iniList ? this.randomIni : () => {this.setState({iniList: undefined})}}
+                  >{!this.state.iniList ? "directions_run" : "close"}</div>
+                  {
+                    this.state.iniList ? <>
+                      <div id="iniPanel" className={this.state.showMenu ? "" : "iniButtonClosedMenu"}
+                        style={this.state.moving ? {opacity: 0.5, pointerEvents: "none"} : {}}
+                      >
+                        {this.state.iniList.map((c, i) => {
+                          return <p key={"iniLabel_" + c.name} style={{margin: "0px"}}>{(i + 1).toString() + ". " + c.name}</p>
+                        })}
+                      </div>
+                      <div className={"arrowLeft" + (this.state.showMenu ? "" : " arrowLeftClosedMenu")} 
+                        style={this.state.moving ? {opacity: 0.5, pointerEvents: "none"} : {}}
+                      />
+                    </> : null
+                  }
+                </>
+              : (this.state.name ? <>
+                <div id="disconnectButton" className={"iconText" + (this.state.showMenu ? "" : " disconnectButtonClosedMenu")} onClick={() => {
+                  socket.emit("exit_game")
+                  this.setState({
+                    name: undefined,
+                    isMaster: false,
+                  })
+                }}>close</div>
+              </>
+              : null )
+            }
           </React.Fragment>
         : null}
       </div>
@@ -645,6 +757,7 @@ class App extends Component {
   getSpecies(){
     return Object.values(this.state.species).map(sp => (
       <div className="speciesItem"
+        key={"speciesItem_" + sp.name}
         onClick={() => {
           socket.emit("newEnemy", sp.name)
         }}
@@ -759,7 +872,7 @@ class App extends Component {
       </div>
       <div id="selectionBoxButtons" style={inMovingStyle}>
         <div 
-          id="selectionDamageButton" className="selectionBoxButton"
+          id="selectionDamageButton" className="selectionBoxButton iconText"
           onClick={() => {
             this.setState({
               modalVisible: true,
@@ -767,9 +880,9 @@ class App extends Component {
               modalDefault: 0,
             })
           }}
-        >DAMAGE</div>
+        >favorite_border</div>
         <div 
-          id="selectionHealButton" className="selectionBoxButton"
+          id="selectionHealButton" className="selectionBoxButton iconText"
           onClick={() => {
             this.setState({
               modalVisible: true,
@@ -777,11 +890,11 @@ class App extends Component {
               modalDefault: 0,
             })
           }}
-        >HEAL</div>
+        >favorite</div>
         {this.state.isMaster && this.getSelectionData("type") === "enemy" ? <div 
-          id="selectionRemoveButton" className="selectionBoxButton"
+          id="selectionRemoveButton" className="selectionBoxButton iconText"
           onClick={() => socket.emit("removeEnemie", this.getSelectionData("name"))}
-        >REMOVE</div> : null}
+        >close</div> : null}
       </div>
     </React.Fragment>
   }

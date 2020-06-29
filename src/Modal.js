@@ -33,14 +33,20 @@ class Modal extends Component {
         <div id="Modal" onClick={e => e.stopPropagation()}>
             <div 
                 id="modalPlusButton"
+                className="iconText"
                 onClick={() => this.setState(old => {return {value: Math.max(old.value - 1, 0)}})}
-            >{"<"}</div>
-            <div id="modalLabel">{this.state.value}</div>
+            >chevron_left</div>
+            <input type="text" id="modalLabel" value={this.state.value} onChange={e => {
+              let n = parseInt(e.target.value)
+              if(!isNaN(n)) this.setState({value: Math.max(parseInt(e.target.value), 0)})
+              if(e.target.value === "") this.setState({value: 0})
+            }}></input>
             <div
                 id="modalMinusButton" 
+                className="iconText"
                 onClick={() => this.setState(old => {return {value: old.value + 1}})}
-            >{">"}</div><br/><br/>
-            <div id="modalOkButton" onClick={this.close}>OK</div>
+            >chevron_right</div><br/><br/>
+            <div id="modalOkButton" className="iconText" onClick={this.close}>done</div>
         </div>
       </div>
     )

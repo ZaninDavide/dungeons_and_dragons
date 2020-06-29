@@ -51,10 +51,10 @@ class DiceModal extends Component {
             <div className="diceModalButton" onClick={() => this.dice(12)}>d12</div>
             <div className="diceModalButton" onClick={() => this.dice(20)}>d20</div>
             <div className="diceModalButton" onClick={() => this.dice(10, 10)}>d100</div>
-            <div className="diceModalButton" 
+            <div className="diceModalButton iconText" 
               onClick={() => this.setState({value: 0, fulSum: ""})}
-              style={{background: "var(--alertColor)"}}
-            >reset</div><br/>
+              style={{background: "var(--alertColor)", position: "relative", top: "2px"}}
+            >refresh</div><br/>
             <p id="diceModalSumLabel">{this.state.fulSum || 0}{" = "}</p>
             <div id="diceModalOkButton" onClick={this.close}>{this.state.value}</div>
         </div>

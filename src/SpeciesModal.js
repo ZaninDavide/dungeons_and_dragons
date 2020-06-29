@@ -38,24 +38,24 @@ class SpeciesModal extends Component {
         <div id="SpeciesModal" onClick={e => e.stopPropagation()}>
           <input id="speciesModalTextbox" type="text" onChange={e => this.setState({name: e.target.value})} value={this.state.name}/><br/>
           <div id="speciesModalHpLabel">{"HP"}</div>
-          <div className="speciesModalMinus" 
+          <div className="speciesModalMinus iconText" 
             onClick={() => this.setState(old => {return {hp: Math.max(0, old.hp - 1)}})}
-          >{"<"}</div>
+          >chevron_left</div>
           <div id="speciesModalHp">{this.state.hp}</div>
-          <div className="speciesModalPlus" 
+          <div className="speciesModalPlus iconText" 
             onClick={() => this.setState(old => {return {hp: old.hp + 1}})}
-          >{">"}</div><br/>
+          >chevron_right</div><br/>
 
           <div id="speciesModalCALabel">{"CA"}</div>
-          <div className="speciesModalMinus"
+          <div className="speciesModalMinus iconText"
             onClick={() => this.setState(old => {return {ca: Math.max(0, old.ca - 1)}})}
-          >{"<"}</div>
+          >chevron_left</div>
           <div id="speciesModalCA">{this.state.ca}</div>
-          <div className="speciesModalPlus"
+          <div className="speciesModalPlus iconText"
             onClick={() => this.setState(old => {return {ca: old.ca + 1}})}
-          >{">"}</div><br/>
+          >chevron_right</div><br/>
 
-          <div id="speciesModalOkButton" onClick={this.close}>OK</div>
+          <div id="speciesModalOkButton" className="iconText" onClick={this.close}>done</div>
         </div>
       </div>
     )

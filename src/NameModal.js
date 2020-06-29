@@ -32,7 +32,7 @@ class NameModal extends Component {
       <div id="backModal" onClick={this.props.abort} style={this.getStyle()}>
         <div id="NameModal" onClick={e => e.stopPropagation()}>
             <input id="nameModalTextbox" type="text" onChange={e => this.setState({value: e.target.value})} value={this.state.value}/><br/>
-            <div id="modalOkButton" onClick={this.close}>OK</div>
+            <div id="nameModalOkButton" className="iconText" onClick={this.close}>done</div>
         </div>
       </div>
     )

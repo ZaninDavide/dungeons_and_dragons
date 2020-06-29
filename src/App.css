@@ -11,6 +11,7 @@ body, #App{
   -ms-user-select: none;
   user-select: none;
   outline: none;
+  
 }
 
 html{
@@ -21,6 +22,19 @@ html{
   --healColor: #83d834;
   --backColorTransparent: #171616fa;
   --radius: 5px;
+}
+
+::-webkit-scrollbar {
+    width: 7px;
+}
+
+::-webkit-scrollbar-track {
+    -webkit-box-shadow: none;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #383838;;
+  outline: none;
 }
 
 #App{
@@ -48,6 +62,12 @@ html{
 .hiddenMenu{
   left: -281px !important;
   pointer-events: none;
+  box-shadow: 0px 0px 0px rgba(0,0,0,.25) !important;
+}
+
+.iconText{
+  font-family: "Material Icons" !important;
+  font-size: 24px;
 }
 
 #main{
@@ -128,7 +148,6 @@ button::selection, circle::selection, svg::selection{
   transition-property: opacity;
   transition-duration: .05s;
   transition-timing-function: linear;
-
 }
 
 #selectionBoxButtons{
@@ -143,24 +162,22 @@ button::selection, circle::selection, svg::selection{
   display: inline-block;
 }
 
-.selectionBoxButton{
-  height: 30px;
+.selectionBoxButton{height: 50px;
   padding: 5px;
-  line-height: 30px;
+  line-height: 50px;
   border-radius: var(--radius);
-
-  font-weight: bold;
   color: white;
-
   cursor: pointer;
   display: inline-block;
   margin-left: 5px;
   margin-right: 5px;
-
   box-shadow: 2px 3px 4px rgba(0,0,0,.25);
   transition-property: opacity;
   transition-duration: .05s;
   transition-timing-function: linear;
+  width: 50px;
+  font-size: 40px;
+  text-align: center;
 }
 
 #selectionDamageButton{
@@ -172,7 +189,8 @@ button::selection, circle::selection, svg::selection{
 }
 
 #selectionRemoveButton{
-  background-color: var(--alertColor);
+  background-color: var(--selectColor);
+  color: black;
 }
 
 #selectedHp, #selectedCa, #selectedIni{
@@ -303,7 +321,7 @@ input[type="color"] {
   display: inline-block;
   width: 50px;
   height: 30px;
-  line-height: 26px;
+  line-height: 30px;
   padding: 5px;
   margin-left: 5px;
   margin-right: 5px;
@@ -323,7 +341,7 @@ input[type="color"] {
   margin-top: 20px;
 }
 
-#modalOkButton, #diceModalOkButton{
+#modalOkButton, #diceModalOkButton, #nameModalOkButton{
   display: inline-block;
   width: 50px;
   height: 30px;
@@ -354,7 +372,11 @@ input[type="color"] {
 }
 
 #modalOkButton{
-  margin-top: 20px;
+  margin-top: -4px;
+}
+
+#nameModalOkButton{
+  margin-top: 17px;
 }
 
 #modalLabel{
@@ -374,18 +396,23 @@ input[type="color"] {
 
   display: inline-block;
   text-align: center;
+
+  position: relative;
+  top: -5px;
+
+  background-color: var(--backColor);
 }
 
 #Modal, #NameModal{
-  width: 300px;
-  height: 180px;
+  width: 240px;
+  height: 140px;
 
-  margin-left: calc((100vw - 300px) / 2);
-  margin-right: calc((100vw - 300px) / 2);
+  margin-left: calc((100vw - 240px) / 2);
+  margin-right: calc((100vw - 240px) / 2);
 
-  margin-top: calc((100vh - 180px) / 3);
+  margin-top: calc((100vh - 140px) / 3);
 
-  padding-top: 15px;
+  padding-top: 0px;
 
   background-color: var(--backColor);
   text-align: center;
@@ -394,10 +421,10 @@ input[type="color"] {
 }
 
 #DiceModal{
-  width: 300px;
+  width: 250px;
 
-  margin-left: calc((100vw - 300px - 30px) / 2);
-  margin-right: calc((100vw - 300px - 30px) / 2);
+  margin-left: calc((100vw - 250px - 30px) / 2);
+  margin-right: calc((100vw - 250px - 30px) / 2);
 
   margin-top: calc((100vh - 230px) / 3);
 
@@ -509,7 +536,7 @@ input[type="color"] {
   color: var(--backColor);
   height: 40px;
   width: 35px;
-  line-height: 35px;
+  line-height: 40px;
   font-size: 25px;
   font-weight: bold;
   border-radius: var(--radius);
@@ -525,7 +552,7 @@ input[type="color"] {
   color: var(--backColor);
   height: 40px;
   width: calc(100% - 30px);
-  line-height: 35px;
+  line-height: 40px;
   font-weight: bold;
   border-radius: var(--radius);
   margin-left: 15px;
@@ -563,16 +590,16 @@ input[type="color"] {
   position: absolute;
   top: 10px;
   left: 288px;
-  width: 50px;
+  width: 30px;
   text-align: center;
   height: 30px;
   padding: 5px;
   line-height: 30px;
   border-radius: var(--radius);
-  font-weight: bold;
   cursor: pointer;
   z-index: 11;
   transition: margin-left .1s ease-in-out;
+  font-size: 24px;
 }
 
 #removeWallsButton{
@@ -581,19 +608,19 @@ input[type="color"] {
   position: absolute;
   top: 60px;
   left: 288px;/*377px*/
-  width: 50px;
+  width: 30px;
   text-align: center;
   height: 30px;
   padding: 5px;
   line-height: 30px;
   border-radius: var(--radius);
-  font-weight: bold;
   cursor: pointer;
   z-index: 11;
   transition: margin-left .1s ease-in-out;
+  font-size: 24px;
 }
 
-.wallButtonClosedMenu, .zoomButtonClosedMenu{
+.wallButtonClosedMenu, .zoomButtonClosedMenu, .downloadButtonClosedMenu, .uploadButtonClosedMenu, .disconnectButtonClosedMenu, .iniButtonClosedMenu, .iniPanelClosedMenu, .arrowLeftClosedMenu{
   margin-left: -280px;
 }
 
@@ -626,9 +653,8 @@ input[type="color"] {
   text-align: center;
   height: 30px;
   padding: 5px;
-  line-height: 25px;
+  line-height: 30px;
   border-radius: var(--radius);
-  font-weight: bold;
   cursor: pointer;
   z-index: 11;
   transition: margin-left .1s ease-in-out;
@@ -645,11 +671,114 @@ input[type="color"] {
   text-align: center;
   height: 30px;
   padding: 5px;
-  line-height: 26px;
+  line-height: 30px;
   border-radius: var(--radius);
-  font-weight: bold;
   cursor: pointer;
   z-index: 11;
   transition: margin-left .1s ease-in-out;
   font-size: 24px;
+}
+
+#disconnectButton{
+  background-color: var(--alertColor);
+  color: var(--backColor);
+  position: absolute;
+  top: 10px;
+  left: 225px;
+  width: 30px;
+  text-align: center;
+  height: 30px;
+  padding: 5px;
+  line-height: 30px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  z-index: 11;
+  transition: margin-left .1s ease-in-out;
+  font-size: 24px;
+}
+
+#downloadButton{
+  background-color: var(--selectColor);
+  color: var(--backColor);
+  position: absolute;
+  top: 10px;
+  left: 225px;
+  width: 30px;
+  text-align: center;
+  height: 30px;
+  padding: 5px;
+  line-height: 30px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  z-index: 11;
+  transition: margin-left .1s ease-in-out;
+  font-size: 24px;
+}
+
+#uploadButton{
+  background-color: var(--selectColor);
+  color: var(--backColor);
+  position: absolute;
+  top: 10px;
+  left: 176px;
+  width: 30px;
+  text-align: center;
+  height: 30px;
+  padding: 5px;
+  line-height: 30px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  z-index: 11;
+  transition: margin-left .1s ease-in-out;
+  font-size: 24px;
+}
+
+#iniButton{
+  background-color: var(--selectColor);
+  color: var(--backColor);
+  position: absolute;
+  top: 110px;
+  left: 288px;
+  width: 30px;
+  text-align: center;
+  height: 30px;
+  padding: 5px;
+  line-height: 30px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  z-index: 11;
+  transition: margin-left .1s ease-in-out;
+  font-size: 24px;
+}
+
+#iniPanel{
+  position: absolute;
+  top: 10px;
+  left: 340px;
+  width: 200px;
+  background-color: var(--backColorTransparent);
+  color: white;
+  border-radius: var(--radius);
+  padding: 15px;
+  font-size: 17px;
+  font-weight: bold;
+  line-height: 2.5em;
+  box-shadow: 2px 3px 4px rgba(0,0,0,.25);
+  height: 170px;
+  overflow-y: auto;
+  padding-top: 0px;
+  padding-bottom: 0px;
+  transition: margin-left .1s ease-in-out;
+}
+
+.arrowLeft {
+  width: 0px;
+  height: 0px;
+  border-top: 10px solid transparent;
+  border-bottom: 10px solid transparent;
+  border-right: 10px solid var(--backColor);
+  position: absolute;
+  top: 120px;
+  left: 331px;
+  transition: margin-left .1s ease-in-out;
 }
